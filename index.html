@@ -192,6 +192,33 @@ function handleClick(e){
 }
 
 function aiMove(){
+    for(let r=0;r<BOARD_SIZE;r++){
+    for(let c=0;c<BOARD_SIZE;c++){
+        if(valid(r,c)){
+            board[r][c]=aiColor;
+            if(checkWin(r,c,aiColor)){
+                board[r][c]=null;
+                move(r,c,aiColor);
+                return;
+            }
+            board[r][c]=null;
+        }
+    }
+}
+for(let r=0;r<BOARD_SIZE;r++){
+    for(let c=0;c<BOARD_SIZE;c++){
+        if(valid(r,c)){
+            board[r][c]=playerColor;
+            if(checkWin(r,c,playerColor)){
+                board[r][c]=null;
+                move(r,c,aiColor);
+                return;
+            }
+            board[r][c]=null;
+        }
+    }
+}
+
     let bestScore=-Infinity;
     let bestMove=null;
 
@@ -236,15 +263,41 @@ function move(r,c,color){
 function evaluate(r,c,color){
     let score=0;
     const dir=[[1,0],[0,1],[1,1],[1,-1]];
-    for(let[dR,dC]of dir){
+
+    for(let[dR,dC] of dir){
         let count=1;
+        let openEnds=0;
+
+        // 한쪽
         for(let i=1;i<5;i++){
             let nr=r+dR*i,nc=c+dC*i;
-            if(nr>=0&&nc>=0&&nr<BOARD_SIZE&&nc<BOARD_SIZE&&board[nr][nc]===color)count++;
-            else break;
+            if(nr>=0&&nc>=0&&nr<BOARD_SIZE&&nc<BOARD_SIZE&&board[nr][nc]===color){
+                count++;
+            }else{
+                if(nr>=0&&nc>=0&&nr<BOARD_SIZE&&nc<BOARD_SIZE&&board[nr][nc]===null) openEnds++;
+                break;
+            }
         }
-        score+=count*count;
+
+        // 반대쪽
+        for(let i=1;i<5;i++){
+            let nr=r-dR*i,nc=c-dC*i;
+            if(nr>=0&&nc>=0&&nr<BOARD_SIZE&&nc<BOARD_SIZE&&board[nr][nc]===color){
+                count++;
+            }else{
+                if(nr>=0&&nc>=0&&nr<BOARD_SIZE&&nc<BOARD_SIZE&&board[nr][nc]===null) openEnds++;
+                break;
+            }
+        }
+
+        if(count>=5) score+=100000;
+        else if(count===4 && openEnds===2) score+=10000;   // 열린4
+        else if(count===4) score+=5000;                    // 막힌4
+        else if(count===3 && openEnds===2) score+=2000;    // 열린3
+        else if(count===3) score+=500;
+        else if(count===2) score+=100;
     }
+
     return score;
 }
 
