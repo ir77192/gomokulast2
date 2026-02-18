@@ -1,0 +1,1 @@
+# gomokulast2
