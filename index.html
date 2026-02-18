@@ -192,39 +192,50 @@ function handleClick(e){
 }
 
 function aiMove(){
-    for(let r=0;r<BOARD_SIZE;r++){
-    for(let c=0;c<BOARD_SIZE;c++){
-        if(valid(r,c)){
-            board[r][c]=aiColor;
-            if(checkWin(r,c,aiColor)){
-                board[r][c]=null;
-                move(r,c,aiColor);
-                return;
-            }
-            board[r][c]=null;
-        }
-    }
-}
-for(let r=0;r<BOARD_SIZE;r++){
-    for(let c=0;c<BOARD_SIZE;c++){
-        if(valid(r,c)){
-            board[r][c]=playerColor;
-            if(checkWin(r,c,playerColor)){
-                board[r][c]=null;
-                move(r,c,aiColor);
-                return;
-            }
-            board[r][c]=null;
-        }
-    }
-}
+   function aiMove(){
+    if(!gameActive) return;
 
     let bestScore=-Infinity;
     let bestMove=null;
 
+    // ✅ 1. AI 즉시 승리 체크
     for(let r=0;r<BOARD_SIZE;r++){
         for(let c=0;c<BOARD_SIZE;c++){
-            if(!valid(r,c))continue;
+            if(valid(r,c)){
+                board[r][c]=aiColor;
+                if(checkWin(r,c,aiColor)){
+                    board[r][c]=null;   // 반드시 원상복구
+                    move(r,c,aiColor);
+                    if(checkWin(r,c,aiColor)) return endGame("AI 승리 🤖");
+                    currentTurn=playerColor;
+                    return;
+                }
+                board[r][c]=null; // 반드시 지우기
+            }
+        }
+    }
+
+    // ✅ 2. 상대 즉시 승리 방어
+    for(let r=0;r<BOARD_SIZE;r++){
+        for(let c=0;c<BOARD_SIZE;c++){
+            if(valid(r,c)){
+                board[r][c]=playerColor;
+                if(checkWin(r,c,playerColor)){
+                    board[r][c]=null;
+                    move(r,c,aiColor);
+                    currentTurn=playerColor;
+                    return;
+                }
+                board[r][c]=null;
+            }
+        }
+    }
+
+    // ✅ 3. 일반 점수 계산
+    for(let r=0;r<BOARD_SIZE;r++){
+        for(let c=0;c<BOARD_SIZE;c++){
+            if(!valid(r,c)) continue;
+
             let score=0;
 
             let atk=3,def=2,rand=50;
@@ -244,7 +255,7 @@ for(let r=0;r<BOARD_SIZE;r++){
 
     if(bestMove){
         move(bestMove[0],bestMove[1],aiColor);
-        if(checkWin(bestMove[0],bestMove[1],aiColor))return endGame("AI 승리 🤖");
+        if(checkWin(bestMove[0],bestMove[1],aiColor)) return endGame("AI 승리 🤖");
         currentTurn=playerColor;
     }
 }
