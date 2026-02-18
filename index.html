@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>오목 게임</title>
+
+<style>
+*{margin:0;padding:0;box-sizing:border-box;}
+
+body{
+    font-family:sans-serif;
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    min-height:100vh;
+    background:linear-gradient(135deg,#ffeaa7,#fab1a0);
+    padding:10px;
+}
+
+.container{
+    width:100%;
+    max-width:600px;
+    text-align:center;
+    margin:auto;
+}
+
+.menu,.game{
+    background:#fff5e1;
+    padding:25px;
+    border-radius:20px;
+    box-shadow:0 10px 25px rgba(0,0,0,0.2);
+}
+
+.game{display:none;}
+.game.active{display:block;}
+
+h1,h2{margin-bottom:15px;}
+
+.button-group{
+    display:flex;
+    flex-wrap:wrap;
+    justify-content:center;
+    gap:10px;
+    margin-bottom:15px;
+}
+
+button{
+    padding:10px 20px;
+    border:none;
+    border-radius:10px;
+    cursor:pointer;
+    font-weight:bold;
+}
+
+.color-btn{background:#74b9ff;color:white;}
+.start-btn{background:#00b894;color:white;width:100%;}
+.reset-btn{background:#d63031;color:white;}
+
+.selected{
+    background:#ffeaa7 !important;
+    color:black !important;
+}
+
+.board-container{
+    margin-top:15px;
+}
+
+canvas{
+    width:100%;
+    max-width:450px;
+    height:auto;
+    background:#fff8dc;
+    border:3px solid #8b6914;
+    border-radius:10px;
+}
+.message{
+    margin-top:10px;
+    font-weight:bold;
+    color:#d63031;
+}
+</style>
+</head>
+
+<body>
+<div class="container">
+
+<div class="menu" id="menu">
+<h1>⚫⚪ 오목 ⚪⚫</h1>
+
+<p>돌 선택</p>
+<div class="button-group">
+<button class="color-btn" onclick="selectColor('black',this)">⚫ 흑</button>
+<button class="color-btn" onclick="selectColor('white',this)">⚪ 백</button>
+</div>
+
+<p>난이도</p>
+<div class="button-group">
+<button class="color-btn" onclick="setDifficulty('easy',this)">쉬움</button>
+<button class="color-btn selected" onclick="setDifficulty('normal',this)">보통</button>
+<button class="color-btn" onclick="setDifficulty('hard',this)">어려움</button>
+</div>
+
+<button class="start-btn" id="startBtn" onclick="startGame()" disabled>게임 시작</button>
+</div>
+
+
+<div class="game" id="game">
+<h2>오목 게임</h2>
+
+<div class="board-container">
+<canvas id="gameCanvas" width="450" height="450"></canvas>
+</div>
+
+<div class="message" id="message"></div>
+<br>
+<button class="reset-btn" onclick="location.reload()">처음부터</button>
+</div>
+
+</div>
+
+<script>
+const BOARD_SIZE=15;
+const CELL=30;
+const PAD=15;
+const RADIUS=14;
+
+let canvas,ctx;
+let board=[];
+let playerColor=null;
+let aiColor=null;
+let currentTurn="black";
+let difficulty="normal";
+let gameActive=true;
+
+const placeSound=new Audio("https://actions.google.com/sounds/v1/cartoon/wood_plank_flicks.ogg");
+const winSound=new Audio("https://actions.google.com/sounds/v1/cartoon/concussive_hit_guitar_boing.ogg");
+
+function selectColor(color,btn){
+    playerColor=color;
+    aiColor=color==="black"?"white":"black";
+    document.querySelectorAll(".menu .button-group:first-of-type button").forEach(b=>b.classList.remove("selected"));
+    btn.classList.add("selected");
+    document.getElementById("startBtn").disabled=false;
+}
+
+function setDifficulty(level,btn){
+    difficulty=level;
+    document.querySelectorAll(".menu .button-group:nth-of-type(2) button").forEach(b=>b.classList.remove("selected"));
+    btn.classList.add("selected");
+}
+
+function startGame(){
+    document.getElementById("menu").style.display="none";
+    document.getElementById("game").classList.add("active");
+
+    canvas=document.getElementById("gameCanvas");
+    ctx=canvas.getContext("2d");
+
+    initBoard();
+    drawBoard();
+
+    canvas.addEventListener("click",handleClick);
+
+    if(playerColor==="white"){
+        setTimeout(aiMove,500);
+    }
+}
+
+function initBoard(){
+    board=Array(BOARD_SIZE).fill(null).map(()=>Array(BOARD_SIZE).fill(null));
+    currentTurn="black";
+    gameActive=true;
+}
+
+function handleClick(e){
+    if(!gameActive||currentTurn!==playerColor)return;
+
+    const rect=canvas.getBoundingClientRect();
+    const x=(e.clientX-rect.left)*(canvas.width/rect.width);
+    const y=(e.clientY-rect.top)*(canvas.height/rect.height);
+
+    const col=Math.round((x-PAD)/CELL);
+    const row=Math.round((y-PAD)/CELL);
+
+    if(valid(row,col)){
+        move(row,col,playerColor);
+        if(checkWin(row,col,playerColor))return endGame("너 승리 🎉");
+        currentTurn=aiColor;
+        setTimeout(aiMove,300);
+    }
+}
+
+function aiMove(){
+    let bestScore=-Infinity;
+    let bestMove=null;
+
+    for(let r=0;r<BOARD_SIZE;r++){
+        for(let c=0;c<BOARD_SIZE;c++){
+            if(!valid(r,c))continue;
+            let score=0;
+
+            let atk=3,def=2,rand=50;
+            if(difficulty==="easy"){atk=1;def=1;rand=200;}
+            if(difficulty==="hard"){atk=5;def=4;rand=5;}
+
+            score+=evaluate(r,c,aiColor)*atk;
+            score+=evaluate(r,c,playerColor)*def;
+            score+=Math.random()*rand;
+
+            if(score>bestScore){
+                bestScore=score;
+                bestMove=[r,c];
+            }
+        }
+    }
+
+    if(bestMove){
+        move(bestMove[0],bestMove[1],aiColor);
+        if(checkWin(bestMove[0],bestMove[1],aiColor))return endGame("AI 승리 🤖");
+        currentTurn=playerColor;
+    }
+}
+
+function valid(r,c){
+    return r>=0&&c>=0&&r<BOARD_SIZE&&c<BOARD_SIZE&&board[r][c]===null;
+}
+
+function move(r,c,color){
+    board[r][c]=color;
+    placeSound.currentTime=0;
+    placeSound.play();
+    drawBoard();
+}
+
+function evaluate(r,c,color){
+    let score=0;
+    const dir=[[1,0],[0,1],[1,1],[1,-1]];
+    for(let[dR,dC]of dir){
+        let count=1;
+        for(let i=1;i<5;i++){
+            let nr=r+dR*i,nc=c+dC*i;
+            if(nr>=0&&nc>=0&&nr<BOARD_SIZE&&nc<BOARD_SIZE&&board[nr][nc]===color)count++;
+            else break;
+        }
+        score+=count*count;
+    }
+    return score;
+}
+
+function checkWin(r,c,color){
+    const dir=[[1,0],[0,1],[1,1],[1,-1]];
+    for(let[dR,dC]of dir){
+        let count=1;
+        for(let i=1;i<5;i++){
+            let nr=r+dR*i,nc=c+dC*i;
+            if(nr>=0&&nc>=0&&nr<BOARD_SIZE&&nc<BOARD_SIZE&&board[nr][nc]===color)count++;
+            else break;
+        }
+        for(let i=1;i<5;i++){
+            let nr=r-dR*i,nc=c-dC*i;
+            if(nr>=0&&nc>=0&&nr<BOARD_SIZE&&nc<BOARD_SIZE&&board[nr][nc]===color)count++;
+            else break;
+        }
+        if(count>=5)return true;
+    }
+    return false;
+}
+
+function drawBoard(){
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+
+    for(let i=0;i<BOARD_SIZE;i++){
+        ctx.beginPath();
+        ctx.moveTo(PAD,PAD+i*CELL);
+        ctx.lineTo(PAD+(BOARD_SIZE-1)*CELL,PAD+i*CELL);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(PAD+i*CELL,PAD);
+        ctx.lineTo(PAD+i*CELL,PAD+(BOARD_SIZE-1)*CELL);
+        ctx.stroke();
+    }
+
+    for(let r=0;r<BOARD_SIZE;r++){
+        for(let c=0;c<BOARD_SIZE;c++){
+            if(board[r][c]){
+                ctx.beginPath();
+                ctx.fillStyle=board[r][c]==="black"?"black":"white";
+                ctx.arc(PAD+c*CELL,PAD+r*CELL,RADIUS,0,Math.PI*2);
+                ctx.fill();
+                ctx.stroke();
+            }
+        }
+    }
+}
+
+function endGame(msg){
+    gameActive=false;
+    winSound.play();
+    document.getElementById("message").textContent=msg;
+}
+</script>
+</body>
+</html>
