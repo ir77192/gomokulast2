@@ -94,7 +94,7 @@ canvas{
 <button class="color-btn" onclick="selectColor('white',this)">⚪ 백</button>
 </div>
 
-<p>난이도</p>
+<p>난이도(ai가 멍청함)</p>
 <div class="button-group">
 <button class="color-btn" onclick="setDifficulty('easy',this)">쉬움</button>
 <button class="color-btn selected" onclick="setDifficulty('normal',this)">보통</button>
@@ -185,7 +185,7 @@ function handleClick(e){
 
     if(valid(row,col)){
         move(row,col,playerColor);
-        if(checkWin(row,col,playerColor))return endGame("너 승리 🎉");
+        if(checkWin(row,col,playerColor))return endGame("YOU WIN 🎉");
         currentTurn=aiColor;
         setTimeout(aiMove,300);
     }
